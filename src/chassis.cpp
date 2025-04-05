@@ -257,11 +257,9 @@ float wrapAngle(float angle) {
     return angle;
 }
 
-void Chassis::gyroTurnOrientation(double theta) {
+void Chassis::gyroTurnOrientation(double theta){
     turnTargetTime = 0;
     mpu->update();
-
-    // Convert target angle to the range [-180, 180]
     double targetTheta = wrapAngle(mpu->getYaw() + theta);
     /*while(abs(anglePID->getLastError()) >= angleError){
         Serial.print("here\n");
@@ -274,62 +272,32 @@ void Chassis::gyroTurnOrientation(double theta) {
         //updatePosition();
 
         //Serial.printf("here4");
-        
-
         if(mpu->update()){
-
-            driveVector(0, mpu->getYaw());
+            driveVector(0, turnPID->getOutput(mpu->getYaw(), targetTheta));
             Serial.printf("last error: %f cur rot: %f target: %f\n", turnPID->getLastError(), mpu->getYaw(), targetTheta);
             delayMicroseconds(5000);
         }
-    } while (!turnIsSettled());
-
-    frontLeftMotor->stop();
-    frontRightMotor->stop();
-    backLeftMotor->stop();
-    backRightMotor->stop();
-
+    }
+    while(!turnIsSettled());
     turnPID->reset();
 }
 
 //set drive train to follow a vector
-void Chassis::driveVector(double velocity, double theta) {
-    // Set max velocities between -1 and 1
-    const double targetForwardSpeed = std::clamp(velocity, -1.0, 1.0);
-    const double targetYaw = std::clamp(theta, -1.0, 1.0);
-
-    // Static variables to store the current motor speeds
-    static double currentForwardSpeed = 0.0;
-    static double currentYaw = 0.0;
-
-    // Define ramp-up rate (adjust as needed)
-    const double rampRate = 0.005; // Increment per call
-
-    // Gradually adjust forward speed
-    if (currentForwardSpeed < targetForwardSpeed) {
-        currentForwardSpeed = std::min(currentForwardSpeed + rampRate, targetForwardSpeed);
-    } else if (currentForwardSpeed > targetForwardSpeed) {
-        currentForwardSpeed = std::max(currentForwardSpeed - rampRate, targetForwardSpeed);
-    }
-
-    // Gradually adjust yaw
-    if (currentYaw < targetYaw) {
-        currentYaw = std::min(currentYaw + rampRate, targetYaw);
-    } else if (currentYaw > targetYaw) {
-        currentYaw = std::max(currentYaw - rampRate, targetYaw);
-    }
-
-    // Calculate motor outputs
-    double leftOutput = currentForwardSpeed + currentYaw;
-    double rightOutput = currentForwardSpeed - currentYaw;
-
-    // Normalize outputs if they exceed max velocity
+void Chassis::driveVector(double velocity, double theta){
+    //set max velocities between -1 and 1
+    const double forwardSpeed = std::clamp(velocity, -1.0, 1.0);
+    const double yaw = std::clamp(theta, -1.0, 1.0);
+    //Serial.printf("yaw: %f\n", yaw);
+    //turn motors with yaw
+    double leftOutput = forwardSpeed + yaw;
+    double rightOutput = forwardSpeed - yaw;
+    //continue turning if one of the motor is over max velocity
     if (const double maxInputMag = std::max<double>(std::abs(leftOutput), std::abs(rightOutput)); maxInputMag > 1) {
         leftOutput /= maxInputMag;
         rightOutput /= maxInputMag;
-    }
 
-    // Set motor velocities
+    } 
+    //Serial.printf("left output: %f right output: %f\n", leftOutput, rightOutput);
     frontLeftMotor->setVelocity(leftOutput);
     frontLeftMotor->stepVelocityPID();
     backLeftMotor->setVelocity(leftOutput);
@@ -339,6 +307,7 @@ void Chassis::driveVector(double velocity, double theta) {
     frontRightMotor->stepVelocityPID();
     backRightMotor->setVelocity(rightOutput);
     backRightMotor->stepVelocityPID();
+    
 }
 
 bool Chassis::turnIsSettled(){
@@ -346,7 +315,7 @@ bool Chassis::turnIsSettled(){
     if(abs(turnPID->getLastError()) >= angleError){
         turnTargetTime = 0;
     }
-    return (500000 <= turnTargetTime) && (abs(turnPID->getLastError()) <= angleError  );
+    return (500000 <= turnTargetTime) && (abs(turnPID->getLastError()) <= angleError * M_PI/180 );
 }
 
 void Chassis::printPosition(){

@@ -23,6 +23,7 @@ Encoder backLeftEnc(ENCODER_BACK_LEFT_B , ENCODER_BACK_LEFT_A);
 
 MPU9250 mpu;
 
+
 Sensor leftSideIR;
 Sensor rightSideIR;
 
@@ -45,7 +46,7 @@ MiniPID backRightPID(MOTOR_VEL_PID_P, MOTOR_VEL_PID_I, MOTOR_VEL_PID_D, MOTOR_VE
 Chassis chassis;
 
 MiniPID anglePID(0,000001,0,0);
-MiniPID turnPID(0.006,0.00001,0);
+MiniPID turnPID(0.3,0.001,0);
 MiniPID distancePID(0.0001,0.00000001,0);
 
 
@@ -54,7 +55,85 @@ Heading m_heading;
 
 Maze maze; 
 
-// Helper functions
+void setup() {
+    Wire1.setClock(400000);
+    Serial.begin(115200);
+    Wire1.begin();
+
+    mpu.setup(0x68, MPU9250Setting(), Wire1);
+    distancePID.setOutputRampRate(0.01);
+    /*delay(2000);
+    Serial.print("accel setup");
+    mpu.calibrateAccelGyro();
+    Serial.print("mag setup ");
+    delay(1000);
+    mpu.calibrateMag();*/
+
+  //   pinMode(BUTTON_1, INPUT);
+  //   pinMode(BUTTON_2, INPUT);
+
+    pinMode(MOTOR_LEFT_IN_1, OUTPUT);
+    pinMode(MOTOR_LEFT_IN_2, OUTPUT);
+    pinMode(MOTOR_BACK_LEFT_PWM, OUTPUT);
+    pinMode(MOTOR_FRONT_LEFT_PWM, OUTPUT);
+
+    pinMode(MOTOR_RIGHT_IN_1, OUTPUT);
+    pinMode(MOTOR_RIGHT_IN_2, OUTPUT);
+    pinMode(MOTOR_BACK_RIGHT_PWM, OUTPUT);
+    pinMode(MOTOR_FRONT_RIGHT_PWM, OUTPUT);
+
+    frontLeftMotor.setMotorPins(MOTOR_LEFT_IN_1, MOTOR_LEFT_IN_2, MOTOR_FRONT_LEFT_PWM);
+    frontLeftMotor.setMotorAttr(MAX_VELOCITY);
+    frontLeftMotor.setEncoder(&frontLeftEnc);
+    frontLeftMotor.setVelPID(&frontLeftPID);
+    frontLeftMotor.initMotor();
+
+    backLeftMotor.setMotorPins(MOTOR_LEFT_IN_1, MOTOR_LEFT_IN_2, MOTOR_BACK_LEFT_PWM);
+    backLeftMotor.setMotorAttr(MAX_VELOCITY);
+    backLeftMotor.setEncoder(&backLeftEnc);
+    backLeftMotor.setVelPID(&backLeftPID);
+    backLeftMotor.initMotor();
+
+    frontRightMotor.setMotorPins(MOTOR_RIGHT_IN_1, MOTOR_RIGHT_IN_2, MOTOR_FRONT_RIGHT_PWM);
+    frontRightMotor.setMotorAttr(MAX_VELOCITY);
+    frontRightMotor.setEncoder(&frontRightEnc);
+    frontRightMotor.setVelPID(&frontRightPID);
+    frontRightMotor.initMotor();
+
+    backRightMotor.setMotorPins(MOTOR_RIGHT_IN_1, MOTOR_RIGHT_IN_2, MOTOR_BACK_RIGHT_PWM);
+    backRightMotor.setMotorAttr(MAX_VELOCITY);
+    backRightMotor.setEncoder(&backRightEnc);
+    backRightMotor.setVelPID(&backRightPID);
+    backRightMotor.initMotor();
+
+    //pinMode(BUZZER, OUTPUT);
+
+    pinMode(MOTOR_STBY, OUTPUT);
+    digitalWrite(MOTOR_STBY, HIGH);
+
+
+    leftSideIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_SIDE);
+    leftSideIR.initSensor();
+    leftAngleIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_ANGLE);
+    leftAngleIR.initSensor();
+    leftFrontIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_FRONT);
+    leftFrontIR.initSensor();
+    rightSideIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_SIDE);
+    rightSideIR.initSensor();
+    rightAngleIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_ANGLE);
+    rightAngleIR.initSensor();
+    rightFrontIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_FRONT);
+    rightFrontIR.initSensor();
+
+    chassis.setMotors(&backRightMotor, &backLeftMotor, &frontRightMotor, &frontLeftMotor);
+    chassis.setChassisAttr(WHEEL_DIAMETER, ENCODER_TICKS_PER_WHEEL_ROTATION, WHEEL_TRACK);
+    chassis.setPID(&distancePID, &anglePID, &turnPID);
+    //chassis.setMPU(&mpu);
+    chassis.setError(7, 2);
+  
+}
+
+
 void update_map() {
   digitalWrite(EMITTER_LEFT_HALF, HIGH);
   digitalWrite(EMITTER_RIGHT_HALF, HIGH);
@@ -105,19 +184,21 @@ void move_ahead(){
 
 void turn_right(){
   chassis.moveForwardTile();
-  chassis.gyroTurnOrientation(90);
+  chassis.turnRight();
   m_heading = right_from(m_heading);
 }
 
 void turn_back(){
-  chassis.gyroTurnOrientation(180);
+  chassis.turnRight();
+  chassis.turnRight();
   chassis.moveForwardTile();
   m_heading = behind_from(m_heading);
 }
 
 void turn_left(){
+
   chassis.moveForwardTile();
-  chassis.gyroTurnOrientation(-90);
+  chassis.turnLeft();
   m_heading = left_from(m_heading);
 }
 
@@ -125,7 +206,7 @@ void search_maze(){
   m_location = START;
   m_heading = NORTH;
   maze.initialise();
-  maze.set_goal(Location(3,3)); // TODO: This needs to be set based off of maze size
+  maze.set_goal(Location(7,7));
 
   maze.flood(maze.goal());
   while (m_location != maze.goal()){
@@ -156,135 +237,30 @@ void search_maze(){
   }
 }
 
-// Setup the mouse
-void setup() {
-  Wire1.setClock(400000);
-  Serial.begin(115200);
-  Wire1.begin();
 
-  mpu.setup(0x68, MPU9250Setting(), Wire1);
-  distancePID.setOutputRampRate(0.01);
-
-  //   pinMode(BUTTON_1, INPUT);
-  //   pinMode(BUTTON_2, INPUT);
-
-    pinMode(MOTOR_LEFT_IN_1, OUTPUT);
-    pinMode(MOTOR_LEFT_IN_2, OUTPUT);
-    pinMode(MOTOR_BACK_LEFT_PWM, OUTPUT);
-    pinMode(MOTOR_FRONT_LEFT_PWM, OUTPUT);
-
-    pinMode(MOTOR_RIGHT_IN_1, OUTPUT);
-    pinMode(MOTOR_RIGHT_IN_2, OUTPUT);
-    pinMode(MOTOR_BACK_RIGHT_PWM, OUTPUT);
-    pinMode(MOTOR_FRONT_RIGHT_PWM, OUTPUT);
-
-    frontLeftMotor.setMotorPins(MOTOR_LEFT_IN_1, MOTOR_LEFT_IN_2, MOTOR_FRONT_LEFT_PWM);
-    frontLeftMotor.setMotorAttr(MAX_VELOCITY);
-    frontLeftMotor.setEncoder(&frontLeftEnc);
-    frontLeftMotor.setVelPID(&frontLeftPID);
-    frontLeftMotor.initMotor();
-
-    backLeftMotor.setMotorPins(MOTOR_LEFT_IN_1, MOTOR_LEFT_IN_2, MOTOR_BACK_LEFT_PWM);
-    backLeftMotor.setMotorAttr(MAX_VELOCITY);
-    backLeftMotor.setEncoder(&backLeftEnc);
-    backLeftMotor.setVelPID(&backLeftPID);
-    backLeftMotor.initMotor();
-
-    frontRightMotor.setMotorPins(MOTOR_RIGHT_IN_1, MOTOR_RIGHT_IN_2, MOTOR_FRONT_RIGHT_PWM);
-    frontRightMotor.setMotorAttr(MAX_VELOCITY);
-    frontRightMotor.setEncoder(&frontRightEnc);
-    frontRightMotor.setVelPID(&frontRightPID);
-    frontRightMotor.initMotor();
-
-    backRightMotor.setMotorPins(MOTOR_RIGHT_IN_1, MOTOR_RIGHT_IN_2, MOTOR_BACK_RIGHT_PWM);
-    backRightMotor.setMotorAttr(MAX_VELOCITY);
-    backRightMotor.setEncoder(&backRightEnc);
-    backRightMotor.setVelPID(&backRightPID);
-    backRightMotor.initMotor();
-
-    //pinMode(BUZZER, OUTPUT);
-
-    pinMode(MOTOR_STBY, OUTPUT);
-    digitalWrite(MOTOR_STBY, HIGH);
-
-    leftSideIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_SIDE);
-    leftSideIR.initSensor();
-    leftAngleIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_ANGLE);
-    leftAngleIR.initSensor();
-    leftFrontIR.setSensorPins(EMITTER_LEFT_HALF, IR_LEFT_FRONT);
-    leftFrontIR.initSensor();
-    rightSideIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_SIDE);
-    rightSideIR.initSensor();
-    rightAngleIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_ANGLE);
-    rightAngleIR.initSensor();
-    rightFrontIR.setSensorPins(EMITTER_RIGHT_HALF, IR_RIGHT_FRONT);
-    rightFrontIR.initSensor();
-
-    chassis.setMotors(&backRightMotor, &backLeftMotor, &frontRightMotor, &frontLeftMotor);
-    chassis.setChassisAttr(WHEEL_DIAMETER, ENCODER_TICKS_PER_WHEEL_ROTATION, WHEEL_TRACK);
-    chassis.setPID(&distancePID, &anglePID, &turnPID);
-    chassis.setMPU(&mpu);
-    chassis.setError(7, 5);
-
-    // Calibrate the MPU9250
-    // delay(2000);
-    // mpu.verbose(true); //Debugging purposes
-    mpu.selectFilter(QuatFilterSel::MAHONY);
-    mpu.setFilterIterations(20);
-    // Serial.print("accel setup\n");
-    // mpu.calibrateAccelGyro();
-    // frontRightMotor.setRawPWM(100, false);
-    // delay(500);
-    // frontRightMotor.stop();
-    // Serial.print("mag setup\n");
-    // delay(1000);
-    // mpu.calibrateMag();
-    // Serial.print("setup done\n");
-    // frontLeftMotor.setRawPWM(100, false);
-    // delay(500);
-    // frontLeftMotor.stop();
-  
-    // Set biases
-    mpu.setAccBias(-2.79, -27.39, -12.07);
-    mpu.setGyroBias(3.41, -0.01, -0.35);
-    mpu.setMagBias(-10.65, -3.55, -514.83);
-    mpu.setMagScale(1.05, 0.99, 0.96);
-    turnPID.setOutputLimits(0.2);
-}
-
-// Main loop
 void loop() {
 
-  // Use IR to start the mouse
   digitalWrite(EMITTER_LEFT_HALF, HIGH);
-  while(900>analogRead(IR_LEFT_FRONT)){
+  while(1000>analogRead(IR_LEFT_FRONT)){
     delay(10);
-    mpu.update();
   }
   Serial.printf("begin\n");
   delay(1000);
-
-  // mpu.update();
-  // Serial.print(mpu.getYaw()); Serial.print(", ");
-  // Serial.print(mpu.getPitch()); Serial.print(", ");
-  // Serial.println(mpu.getRoll()); Serial.print("\n");
-
-  // search_maze();
-  turn_left();
-  //delay(20000);
+  search_maze();
+  //turn_left();
 
 
     
     /*Serial.printf("IMU test\n");
     while(true){
-        // IMU.getGyro(&gyroData);
+        //IMU.getGyro(&gyroData);
         // auto result = mySensor.magUpdate();
         // if (result != 0) {
         //   mySensor.beginMag();
         // result = mySensor.magUpdate();
         // }
         // mySensor.magUpdate();
-        // mySensor.gyroUpdate();
+        //  mySensor.gyroUpdate();
         // mySensor.accelUpdate();
         
         // Serial.printf("Mag X:%f Y:%f Z:%f\n", mySensor.magX(), mySensor.magY(), mySensor.magZ());

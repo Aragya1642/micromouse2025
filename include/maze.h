@@ -138,8 +138,8 @@
   * values for cost and changes will be needed. the AVR has very limited RAM
   * so the simplest option is used here.
   */
- #define MAZE_WIDTH 8
- #define MAZE_HEIGHT 8
+ #define MAZE_WIDTH 16
+ #define MAZE_HEIGHT 16
  #define MAZE_CELL_COUNT (MAZE_WIDTH * MAZE_HEIGHT)
  #define MAX_COST (MAZE_CELL_COUNT - 1)
  
