@@ -45,8 +45,8 @@ MiniPID backRightPID(MOTOR_VEL_PID_P, MOTOR_VEL_PID_I, MOTOR_VEL_PID_D, MOTOR_VE
 Chassis chassis;
 
 MiniPID anglePID(0,000001,0,0);
-MiniPID turnPID(0.01,0.0000001,0.15);
-MiniPID distancePID(0.001,0.00000001,0);
+MiniPID turnPID(0.006,0.00001,0);
+MiniPID distancePID(0.0001,0.00000001,0);
 
 
 Location m_location;
@@ -116,11 +116,7 @@ void turn_back(){
 }
 
 void turn_left(){
-  // chassis.moveForwardTile();
-  // delay(200);
-  // for(int i = 0; i < 100; i++){
-  //   mpu.update();
-  // }
+  chassis.moveForwardTile();
   chassis.gyroTurnOrientation(-90);
   m_heading = left_from(m_heading);
 }
@@ -228,7 +224,7 @@ void setup() {
     chassis.setChassisAttr(WHEEL_DIAMETER, ENCODER_TICKS_PER_WHEEL_ROTATION, WHEEL_TRACK);
     chassis.setPID(&distancePID, &anglePID, &turnPID);
     chassis.setMPU(&mpu);
-    chassis.setError(7, 4);
+    chassis.setError(7, 5);
 
     // Calibrate the MPU9250
     // delay(2000);
@@ -253,7 +249,7 @@ void setup() {
     mpu.setGyroBias(3.41, -0.01, -0.35);
     mpu.setMagBias(-10.65, -3.55, -514.83);
     mpu.setMagScale(1.05, 0.99, 0.96);
-    turnPID.setOutputLimits(0.4);
+    turnPID.setOutputLimits(0.2);
 }
 
 // Main loop
